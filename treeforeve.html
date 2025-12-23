@@ -344,7 +344,7 @@ const CONFIG = {
         innerParticleCount: 16000,  // 树内部发光粒子数量
         orbitParticleCount: 180    // 【修改】降低为文字所需的字符数量，每个字符由一个Sprite构成
     },
-    orbitText: "今 天 快 乐  LiK  ", // 【新增】自定义环绕文字
+    orbitText: " 今 天 快 乐 天 天 快 乐 ", // 【新增】自定义环绕文字
     camera: { z: 50 },
     preload: {
 		autoScanLocal: false, // 关闭之前的自动扫描
@@ -403,6 +403,20 @@ const COLOR_THEMES = {
         ribbon: 0xFFD700,          // 金色彩带
         ribbonEmissive: 0x554400,
         name: 'PURPLE'
+    },
+	 // --- 新增冰雪配色参数 ---
+    ICE: {
+        primary: 0xCFEFFF,        // 极浅的冰蓝色（对应金球变冰球）
+        secondary: 0xFFFFFF,      // 纯白色
+        emissive: 0x0055FF,       // 核心发光改为深蓝色（产生冷光感）
+        nebula: 0x88CCFF,         // 星云粒子改为浅天蓝
+        star: 0xFFFFFF,           // 星星改为纯白
+        starEmissive: 0x00FFFF,   // 星星发光改为亮青色
+        giftBox: 0x77AAFF,        // 礼物盒改为冷蓝色
+        giftBoxEmissive: 0x001133, // 盒子发光极暗，增加质感
+        ribbon: 0xFFFFFF,         // 丝带改为纯白色
+        ribbonEmissive: 0x444444, // 丝带微弱发光
+        name: 'ICE'
     }
 };
 
@@ -643,7 +657,7 @@ function setupTouchAndClick() {
         }
     });
     // 双击切换颜色主题
-    const themeOrder = ['GOLD', 'PINK', 'PURPLE'];
+    const themeOrder = ['GOLD', 'PINK', 'PURPLE', 'ICE'];
     let lastTap = 0;
     container.addEventListener('touchend', (e) => {
         const currentTime = new Date().getTime();
