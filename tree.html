@@ -405,18 +405,18 @@ const COLOR_THEMES = {
         name: 'PURPLE'
     },
 	ICE: {
-        primary: 0xE0F7FF,        // 极浅蓝（近乎白色的冰晶色）
-        secondary: 0xFFFFFF,      // 纯白
-        emissive: 0x224466,       // 深邃的冷蓝色背景发光
-        nebula: 0xCCEEFF,         // 星云粒子：淡天蓝
-        star: 0xAFE4FF,           // 星星：冰蓝色
-        starEmissive: 0x4488FF,   // 星星发光：亮蓝
-        giftBox: 0x99BBCC,        // 礼物盒：银蓝色
-        giftBoxEmissive: 0x051a33, 
-        ribbon: 0xFFFFFF,         // 丝带：纯白
-        ribbonEmissive: 0x222222,
-        name: 'ICE'
-    }
+		primary: 0xE0F7FF,        
+		secondary: 0xFFFFFF,      
+		emissive: 0x001122,       // 极淡的深蓝背景色
+		nebula: 0xCCEEFF,         
+		star: 0xFFFFFF,           
+		starEmissive: 0x66AAFF,   // 星星带点淡蓝光
+		giftBox: 0xAADDFF,        
+		giftBoxEmissive: 0x001122, 
+		ribbon: 0xFFFFFF,         
+		ribbonEmissive: 0x222222,
+		name: 'ICE'
+	}
 };
 
 // 音乐相关
@@ -1237,14 +1237,40 @@ function updatePhotoLayout() {
 }
 
 function createParticles() {
-    const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32); 
+    // 半径 0.5，面数调高到 32, 24，确保渐变丝滑
+	const sphereGeo = new THREE.SphereGeometry(0.5, 12, 8); 
     const boxGeo = new THREE.BoxGeometry(0.55, 0.55, 0.55); 
     const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0, 0.3, 0), new THREE.Vector3(0.1, 0.5, 0), new THREE.Vector3(0.3, 0.4, 0)]);
     const candyGeo = new THREE.TubeGeometry(curve, 16, 0.08, 8, false);
-    goldMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1.0, roughness: 0.1, envMapIntensity: 2.0, emissive: 0x443300, emissiveIntensity: 0.3 });
-    giftBoxMat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.1, emissive: 0x553300, emissiveIntensity: 0.3, reflectivity: 1.0 });
+    //goldMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1.0, roughness: 0.1, envMapIntensity: 2.0, emissive: 0x443300, emissiveIntensity: 0.3 });
+    // --- 修改初始化材质，使其支持动态切换物理特性 ---
+	goldMat = new THREE.MeshPhysicalMaterial({ 
+		color: CONFIG.colors.champagneGold, 
+		metalness: 1.0, 
+		roughness: 0.1, 
+		envMapIntensity: 2.0, 
+		emissive: 0x443300, 
+		emissiveIntensity: 0.3,
+		// 预留冰晶属性
+		transmission: 0, 
+		thickness: 1.0,
+		ior: 1.5
+	});
+
+	redMat = new THREE.MeshPhysicalMaterial({ 
+		color: CONFIG.colors.accentRed, 
+		metalness: 0.3, 
+		roughness: 0.2, 
+		clearcoat: 1.0, 
+		emissive: 0x330000,
+		// 预留冰晶属性
+		transmission: 0, 
+		thickness: 1.0,
+		ior: 1.5
+	});
+	giftBoxMat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.1, emissive: 0x553300, emissiveIntensity: 0.3, reflectivity: 1.0 });
     ribbonMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, metalness: 1.0, roughness: 0.1, emissive: 0x440000, emissiveIntensity: 0.4 });
-    redMat = new THREE.MeshPhysicalMaterial({ color: CONFIG.colors.accentRed, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x330000 });
+    //redMat = new THREE.MeshPhysicalMaterial({ color: CONFIG.colors.accentRed, metalness: 0.3, roughness: 0.2, clearcoat: 1.0, emissive: 0x330000 });
     const candyMat = new THREE.MeshStandardMaterial({ map: caneTexture, roughness: 0.4 });
     
     // 创建带彩带的礼物盒
@@ -1652,7 +1678,60 @@ function setupEvents() {
 function animate() {
     requestAnimationFrame(animate);
     const dt = clock.getDelta();
-    
+	
+	// --- ICE 模式：实心霜冻冰晶版（解决泡泡感） ---
+	const isIceMode = (STATE.colorTheme === 'ICE');
+
+	[goldMat, redMat].forEach(mat => {
+		if (mat) {
+			if (mat.flatShading !== isIceMode) {
+				mat.flatShading = isIceMode;
+				mat.needsUpdate = true; 
+			}
+
+			if (isIceMode) {
+				// 1. 关键：降低透光率到 0.5 - 0.6
+				// 这样球体表面会保留一部分漫反射，看起来才像“实体”而不是“空泡”
+				mat.transmission = 0.72; 
+				mat.metalness = 0.0;
+				
+				// 2. 增加一点表面磨砂感，模拟冰霜
+				mat.roughness = 0.18; 
+				
+				// 3. 颜色：纯白底色（白芯的来源）
+				mat.color.setHex(0xc0e2fa); 
+				
+				// 4. 物理衰减：极端距离
+				// 距离设为 0.1，意味着球体内部非常容易变白不透明，产生厚重的冰芯感
+				mat.attenuationColor.setHex(0xffffff);
+				mat.attenuationDistance = 0.3; 
+
+				// 5. 实体折射感与厚度
+				mat.ior = 3.0;        
+				mat.thickness = 1.8;   // 模拟实心球光路
+				
+				// 6. 表面清漆：这是保留“冰块闪烁”的关键
+				// 即使内部磨砂，外层也要有一层明亮的高光壳
+				mat.clearcoat = 0.4;
+				mat.clearcoatRoughness = 0.5;
+				mat.envMapIntensity = 2.0;
+
+				// 7. 自发光：增强白芯的亮度，防止它变灰
+				mat.emissive.setHex(0xc0e2fa);
+				mat.emissiveIntensity = 0.18; 
+
+				mat.transparent = true;
+			} else {
+				// --- 恢复其他模式（金属质感） ---
+				mat.transmission = THREE.MathUtils.lerp(mat.transmission, 0, 0.1);
+				mat.metalness = mat === goldMat ? 1.0 : 0.3;
+				mat.color.lerp(new THREE.Color(mat === goldMat ? COLOR_THEMES[STATE.colorTheme].primary : CONFIG.colors.accentRed), 0.1);
+				mat.thickness = 0;
+				mat.emissiveIntensity = 0.3;
+				mat.transparent = false;
+			}
+		}
+	});
     // 更新颜色主题（平滑过渡）
     const theme = COLOR_THEMES[STATE.colorTheme];
     if (goldMat) {
@@ -1711,12 +1790,17 @@ function animate() {
     
     // FOCUS 模式下降低 Bloom 强度，避免照片变白
     if (bloomPass) {
-        // 如果是 ICE 模式，光晕增强到 0.45，否则保持 0.25
-        let baseStrength = (STATE.colorTheme === 'ICE') ? 0.45 : 0.25;
-        const targetStrength = (STATE.mode === 'FOCUS') ? 0.05 : baseStrength;
-        bloomPass.strength += (targetStrength - bloomPass.strength) * 0.1;
-    }
-    
+		// 动态调整辉光强度和阈值
+		if (STATE.colorTheme === 'ICE') {
+			// ICE 模式：提高阈值过滤闪烁，稍微降低强度
+			bloomPass.threshold = 1.0; 
+			bloomPass.strength = THREE.MathUtils.lerp(bloomPass.strength, 0.2, 0.1);
+		} else {
+			// 其他模式（GOLD/PINK等）：降低阈值让 16000 粒子亮起来，恢复强度
+			bloomPass.threshold = 0.95;  // 阈值越低，越多的粒子会发光
+			bloomPass.strength = THREE.MathUtils.lerp(bloomPass.strength, 0.3, 0.1);
+		}
+	}
     composer.render();
 }
 
